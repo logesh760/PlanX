@@ -5,7 +5,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 
-import com.aistudio.planx.vksqpd.BuildConfig
+import com.example.BuildConfig
 import com.example.data.*
 
 import kotlinx.coroutines.Dispatchers
