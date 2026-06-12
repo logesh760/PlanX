@@ -1,22 +1,28 @@
 package com.example.viewmodel
 
 import android.app.Application
+
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.BuildConfig
+
+import com.aistudio.planx.vksqpd.BuildConfig
 import com.example.data.*
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.text.SimpleDateFormat
-import java.util.*
-import okhttp3.MediaType.Companion.toMediaType
+
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
+
+import org.json.JSONObject
+
+import java.text.SimpleDateFormat
+import java.util.*
 
 sealed class CommandActionResult {
     data class OpenWindow(val windowId: String) : CommandActionResult()
