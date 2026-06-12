@@ -18,6 +18,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "GEMINI_API_KEY",
+            "\"YOUR_API_KEY\""
+        )
     }
 
     signingConfigs {
@@ -50,7 +56,13 @@ android {
     }
 }
 
+secrets {
+    propertiesFileName = ".env"
+    defaultPropertiesFileName = ".env.example"
+}
+
 dependencies {
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
 
