@@ -1,21 +1,11 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
-
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/961632cd-8fd3-45e7-be47-9ddb5b490c35
-
-## Run Locally
-
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
-
-
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
+This application is a highly integrated, offline-first personal workspace companion designed to maximize local productivity, disk privacy, and smart automated controls.
+Core Purpose & Philosophy
+The application acts as a private, secure dashboard for managing daily workspace operations completely on-device. By keeping all resources, notes, voice prints, and financial receipt tables inside an offline SQLite Room Database and your local app Sandbox directories, the tool guarantees that no personal information or metrics ever leak to external cloud servers.
+Key Capabilities & Visual Modules
+Fingerprint Biometric Voice Station: Centered on the main interface is an emerald-hued biometric-style voice controller. Running on an offline semantic parser, it accepts both English and Tamil spoken instructions (e.g., "notes open pannu", "Spent 150 for food", "delete notes") to trigger app activities instantly.
+Aesthetic Modular Grid: The workspace layout features adaptive draggable widget cards including:
+Study Tracker & Pomodoro: A visual productivity terminal with ticking focus periods and break sequences.
+Local Scratchpad (Notes) & Photos: Rich memo tools paired with a private snapshot vault containing pictures snapped from the hardware camera or imported from the gallery.
+Secure File Manager: A visual directory viewer showing actual relative storage structures on disk (Android/data/...). It allows you to record live voice notes (.m4a), view captured photos, preview file meta weights, and safely wipe disk space.
+Local Financial Ledger: Track expenses and daily income records on-the-fly.
+Manual Console Fallback: An optional togglable manual text entry field within the system settings that allows keyboard command inputs when spoken voice is not preferred.
