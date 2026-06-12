@@ -53,6 +53,30 @@ import com.example.viewmodel.AppViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.KeyboardHide
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.StickyNote2
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.filled.Widgets
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.AspectRatio
 
 class MainActivity : ComponentActivity() {
     private var tts: TextToSpeech? = null
