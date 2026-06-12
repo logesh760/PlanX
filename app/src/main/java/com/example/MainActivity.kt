@@ -4,14 +4,16 @@ import android.content.Context
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
+
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -19,12 +21,15 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.filled.*
+
 import androidx.compose.material3.*
+
 import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -45,65 +50,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+
 import com.example.data.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AppViewModel
+
+import kotlinx.coroutines.delay
+
 import java.text.SimpleDateFormat
 import java.util.*
+
 import kotlin.math.roundToInt
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Camera
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.KeyboardHide
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NoteAdd
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.StickyNote2
-import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material.icons.filled.Widgets
-import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material.icons.filled.AspectRatio
-import androidx.compose.material.icons.automirrored.filled.NoteAdd
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Camera
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.HourglassTop
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.KeyboardHide
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.NoteAdd
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.StickyNote2
-import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.filled.ViewAgenda
-import androidx.compose.material.icons.filled.Widgets
-import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material.icons.filled.AspectRatio
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 
 class MainActivity : ComponentActivity() {
     private var tts: TextToSpeech? = null
