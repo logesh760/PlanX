@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Center elegant X shape representing PlanX Desktop OS Core -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M34,26 L48,26 L54,38 L60,26 L74,26 L61,54 L74,82 L60,82 L54,70 L48,82 L34,82 L47,54 Z" />
+    <!-- Glowing Accent lock/disk dots -->
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M24,54 A4,4 0,1 0,16 54 A4,4 0,1 0,24 54" />
+    <path
+        android:fillColor="#06B6D4"
+        android:pathData="M92,54 A4,4 0,1 0,84 54 A4,4 0,1 0,92 54" />
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M54,18 A4,4 0,1 0,54 10 A4,4 0,1 0,54 18" />
+    <path
+        android:fillColor="#EC4899"
+        android:pathData="M54,98 A4,4 0,1 0,54 90 A4,4 0,1 0,54 98" />
+</vector>
