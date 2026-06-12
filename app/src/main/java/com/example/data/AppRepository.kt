@@ -64,8 +64,8 @@ class AppRepository(private val dao: PlanXDao) {
                 WidgetEntity("notes", "notes", "Local Memo Scratchpad", isVisible = true),
                 WidgetEntity("calendar", "calendar", "Calendar Grid", isVisible = true),
                 WidgetEntity("pomodoro", "pomodoro", "Workspace Pomodoro", isVisible = true),
-                WidgetEntity("voice_recorder", "voice_recorder", "Secured Voice Recorder", isVisible = false),
-                WidgetEntity("photo_gallery", "photo_gallery", "Local Snap Gallery", isVisible = false),
+                WidgetEntity("voice_recorder", "voice_recorder", "Secured Voice Recorder", isVisible = true),
+                WidgetEntity("photo_gallery", "photo_gallery", "Local Snap Gallery", isVisible = true),
                 WidgetEntity("ai_assistant", "ai_assistant", "Hermes local AI Assistant", isVisible = true)
             )
             dao.insertWidgets(defaults)

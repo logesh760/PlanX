@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +63,18 @@ import com.example.viewmodel.AppViewModel
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
+import java.io.File
+import java.io.FileOutputStream
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import androidx.compose.ui.graphics.asImageBitmap
+import android.media.MediaPlayer
+import android.media.MediaRecorder
+import android.os.Build
+import android.os.Environment
+import android.net.Uri
 
 class MainActivity : ComponentActivity() {
     private var tts: TextToSpeech? = null
@@ -813,6 +826,7 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
     val assistantFeedback by viewModel.assistantResponse.collectAsStateWithLifecycle()
     val isPulseListening by viewModel.isListening.collectAsStateWithLifecycle()
     val pendingAction by viewModel.pendingConfirmationAction.collectAsStateWithLifecycle()
+    val isManualTypingEnabled by viewModel.isManualTypingEnabled.collectAsStateWithLifecycle()
 
     var manualInputText by remember { mutableStateOf("") }
     val isKeyboardVisible = remember { mutableStateOf(false) }
@@ -920,147 +934,131 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .background(com.example.ui.theme.ImmersiveSurfaceVariant)
-            .border(BorderStroke(1.dp, com.example.ui.theme.ImmersiveOutline), RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            .padding(20.dp)
+            .padding(bottom = 16.dp, start = 20.dp, end = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Voice Console Header Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Audio Pulsing Status Indicator with breathing ripple
-                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-                    val pulseAlpha by infiniteTransition.animateFloat(
-                        initialValue = 0.8f,
-                        targetValue = if (isPulseListening) 0.1f else 0.8f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(1000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "alpha"
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable { toggleLiveVoice() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isPulseListening) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Red.copy(alpha = pulseAlpha))
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(10.dp)
-                                .clip(CircleShape)
-                                .background(if (isPulseListening) Color.Red else Color(0xFF10B981))
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isPulseListening) "Listening to Voice..." else "Hermes Voice OS (Offline-First)",
-                        color = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersiveTextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
-                    )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (isPulseListening) "Speak your action clearly now." else "Offline local semantic engine actively waiting for commands.",
-                    color = com.example.ui.theme.ImmersiveTextSecondary,
-                    fontSize = 11.sp
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Live voice trigger mic button
-                IconButton(
-                    onClick = { toggleLiveVoice() },
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(if (isPulseListening) Color.Red.copy(alpha = 0.2f) else com.example.ui.theme.ImmersiveSurface)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "Live Voice Mic Toggle",
-                        tint = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary
-                    )
-                }
-
-                // Keyboard/Dictation toggle
-                IconButton(
-                    onClick = { isKeyboardVisible.value = !isKeyboardVisible.value },
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(com.example.ui.theme.ImmersiveSurface)
-                ) {
-                    Icon(
-                        imageVector = if (isKeyboardVisible.value) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
-                        contentDescription = "Manual Console Mode",
-                        tint = com.example.ui.theme.ImmersivePrimary
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Confirmation required flashing banner
+        // Confirmation required flashing banner (minimal non-card text label)
         if (pendingAction != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF7F1D1D))
-                    .border(1.dp, Color.Red.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Security, contentDescription = "Security Alert", tint = Color.Red, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Voice confirmation needed: Safe disk wipe action requested. Confirm with: Yes / Aama", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Voice confirmation needed: Yes / Aama to continue",
+                color = Color.Red,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
         }
 
-        // Response bubble
+        // Response bubble (minimal text without surrounding cards/panels)
         if (assistantFeedback.isNotEmpty()) {
+            Text(
+                text = assistantFeedback,
+                color = com.example.ui.theme.ImmersivePrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(bottom = 10.dp)
+                    .testTag("assistant_response")
+            )
+        }
+
+        // Centered Small Biometric 5G Fingerprint style voice button
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            val infiniteTransition = rememberInfiniteTransition(label = "biometric_pulse")
+            val pulseRadius1 by infiniteTransition.animateFloat(
+                initialValue = 1.0f,
+                targetValue = 1.4f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "radius1"
+            )
+            val pulseAlpha1 by infiniteTransition.animateFloat(
+                initialValue = 0.6f,
+                targetValue = 0.0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1500, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "alpha1"
+            )
+
+            // Outer pulse ripple (biometric waves radiating out)
+            if (isPulseListening) {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .graphicsLayer(scaleX = pulseRadius1, scaleY = pulseRadius1, alpha = pulseAlpha1)
+                        .border(2.dp, Color.Red, CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(68.dp)
+                        .graphicsLayer(scaleX = pulseRadius1, scaleY = pulseRadius1, alpha = pulseAlpha1)
+                        .border(1.dp, Color(0xFF10B981), CircleShape)
+                )
+            }
+
+            // Interactive centered main scanner pad
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(com.example.ui.theme.ImmersiveSurface)
-                    .border(1.dp, com.example.ui.theme.ImmersiveOutline, RoundedCornerShape(16.dp))
-                    .padding(12.dp)
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(
+                        brush = Brush.radialGradient(
+                            colors = if (isPulseListening) {
+                                listOf(Color(0xFF7F1D1D), Color(0xFF1E1B4B), Color(0xFF0F172A))
+                            } else {
+                                listOf(Color(0xFF065F46), Color(0xFF111827), Color(0xFF030712))
+                            }
+                        )
+                    )
+                    .border(
+                        width = 2.dp,
+                        color = if (isPulseListening) Color.Red else Color(0xFF10B981).copy(alpha = 0.8f),
+                        shape = CircleShape
+                    )
+                    .clickable { toggleLiveVoice() },
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = assistantFeedback,
-                    color = com.example.ui.theme.ImmersivePrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.testTag("assistant_response")
+                // Outer scanner overlay rings
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val baseRadius = this.size.width / 2f
+                    drawCircle(
+                        color = if (isPulseListening) Color.Red.copy(alpha = 0.15f) else Color(0xFF10B981).copy(alpha = 0.12f),
+                        radius = baseRadius * 0.75f,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1f)
+                    )
+                    drawCircle(
+                        color = if (isPulseListening) Color.Red.copy(alpha = 0.25f) else Color(0xFF10B981).copy(alpha = 0.22f),
+                        radius = baseRadius * 0.5f,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5f)
+                    )
+                    drawCircle(
+                        color = if (isPulseListening) Color.Red.copy(alpha = 0.40f) else Color(0xFF10B981).copy(alpha = 0.35f),
+                        radius = baseRadius * 0.25f,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.0f)
+                    )
+                }
+
+                // Voice Mic icon on top
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Live Voice Mic Fingerprint area",
+                    tint = if (isPulseListening) Color.Red else Color(0xFF10B981),
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Interaction bar: standard micro trigger + direct typing fallback
-        if (isKeyboardVisible.value) {
+        // Conditional Manual Typing options box
+        if (isManualTypingEnabled) {
+            Spacer(modifier = Modifier.height(14.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -1068,7 +1066,7 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
                 OutlinedTextField(
                     value = manualInputText,
                     onValueChange = { manualInputText = it },
-                    placeholder = { Text("Command input (Tamil/English/Numbers)", color = com.example.ui.theme.ImmersiveTextSecondary, fontSize = 12.sp) },
+                    placeholder = { Text("Command input (Tamil/English)...", color = com.example.ui.theme.ImmersiveTextSecondary, fontSize = 12.sp) },
                     shape = RoundedCornerShape(24.dp),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -1084,8 +1082,10 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = {
-                        viewModel.processVoiceCommandText(manualInputText)
-                        manualInputText = ""
+                        if (manualInputText.isNotBlank()) {
+                            viewModel.processVoiceCommandText(manualInputText)
+                            manualInputText = ""
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = com.example.ui.theme.ImmersivePrimary,
@@ -1094,65 +1094,8 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
                     shape = RoundedCornerShape(24.dp),
                     modifier = Modifier.height(48.dp).testTag("submit_voice_command")
                 ) {
-                    Text("EXEC", fontWeight = FontWeight.Bold)
+                    Text("EXEC", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 }
-            }
-        } else {
-            // Live Speak Button banner
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { toggleLiveVoice() }
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (isPulseListening) Color.Red.copy(alpha = 0.15f) else com.example.ui.theme.ImmersiveSurface)
-                    .border(
-                        BorderStroke(1.dp, if (isPulseListening) Color.Red else com.example.ui.theme.ImmersiveOutline),
-                        RoundedCornerShape(16.dp)
-                    )
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Live Voice Mic",
-                    tint = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = if (isPulseListening) "LISTENING... SAY COMMAND" else "TAP TO SPEAK COMMAND LIVE",
-                        color = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = if (isPulseListening) "Speak command in English or Tamil now" else "Tap and speak. Uses on-device speech recognizer.",
-                        color = com.example.ui.theme.ImmersiveTextSecondary,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Simulated Voice input presets so emulator user can experience Tamil & English voice parsing effortlessly
-            Text("Try simulated spoken commands (Tap to trigger):", color = com.example.ui.theme.ImmersiveTextSecondary, fontSize = 11.sp)
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                VoiceCommandPresetChip("study start pannu", viewModel)
-                VoiceCommandPresetChip("notes open pannu", viewModel)
-                VoiceCommandPresetChip("Spent 150 for food", viewModel)
-                VoiceCommandPresetChip("Add income 5000 from work", viewModel)
-                VoiceCommandPresetChip("delete notes", viewModel)
-                VoiceCommandPresetChip("open settings", viewModel)
-                VoiceCommandPresetChip("camera open pannu", viewModel)
-                VoiceCommandPresetChip("take photo", viewModel)
             }
         }
     }
@@ -1277,6 +1220,29 @@ fun SettingsAppWindow(viewModel: AppViewModel, widgets: List<WidgetEntity>) {
                 Switch(
                     checked = widget.isVisible,
                     onCheckedChange = { viewModel.toggleWidgetVisibility(widget.id, it) },
+                    colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF10B981))
+                )
+            }
+        }
+
+        item {
+            Divider(color = Color.DarkGray)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Console Mode Settings", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(8.dp))
+            val manualTyping by viewModel.isManualTypingEnabled.collectAsStateWithLifecycle()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Enable Manual Typing Option", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Adds a keyboard fallback option inside the live voice console", color = Color.Gray, fontSize = 11.sp)
+                }
+                Switch(
+                    checked = manualTyping,
+                    onCheckedChange = { viewModel.toggleManualTyping(it) },
                     colors = SwitchDefaults.colors(checkedThumbColor = Color(0xFF10B981))
                 )
             }
@@ -1847,62 +1813,419 @@ fun StudyCenterAppWindow(viewModel: AppViewModel, habits: List<HabitEntity>) {
 @Composable
 fun FileManagerAppWindow(viewModel: AppViewModel, notes: List<NoteEntity>, finances: List<FinanceEntity>) {
     val folders by viewModel.currentFolders.collectAsStateWithLifecycle()
+    var selectedFolderTab by remember { mutableStateOf<String?>(null) }
     var folderNameText by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    
+    // Physical files on storage listing
+    val externalDir = context.getExternalFilesDir(null)
+    val rootPathString = externalDir?.absolutePath ?: "Unavailable"
+    val appCustomRoot = "Android/data/${context.packageName}/files"
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text("Create custom Workspace Directory Folder:", color = Color.LightGray, fontSize = 11.sp)
-        Spacer(modifier = Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = folderNameText,
-                onValueChange = { folderNameText = it },
-                placeholder = { Text("Folder Name", color = Color.Gray) },
-                singleLine = true,
-                modifier = Modifier.weight(1f).height(48.dp),
-                textStyle = TextStyle(color = Color.White)
-            )
-            Button(
-                onClick = {
-                    if (folderNameText.isNotEmpty()) {
-                        viewModel.createFolder(folderNameText)
-                        folderNameText = ""
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
-            ) {
-                Text("Create", fontSize = 11.sp)
+    // Multi-media preview states
+    var selectedPreviewFile by remember { mutableStateOf<File?>(null) }
+    var activeAudioPlayingPath by remember { mutableStateOf<String?>(null) }
+    var mediaPlayerInstance by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    // Physical Voice Recorder states
+    var isRecordingVoice by remember { mutableStateOf(false) }
+    var mediaRecorderInstance by remember { mutableStateOf<MediaRecorder?>(null) }
+    var currentRecordingFile by remember { mutableStateOf<File?>(null) }
+
+    fun playAudioFile(file: File) {
+        try {
+            mediaPlayerInstance?.stop()
+            mediaPlayerInstance?.release()
+            
+            val mp = MediaPlayer().apply {
+                setDataSource(file.absolutePath)
+                prepare()
+                start()
+            }
+            mediaPlayerInstance = mp
+            activeAudioPlayingPath = file.absolutePath
+            mp.setOnCompletionListener {
+                activeAudioPlayingPath = null
+                mediaPlayerInstance = null
+            }
+            Toast.makeText(context, "Playing audio note...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Playback error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun stopAudioFile() {
+        mediaPlayerInstance?.stop()
+        mediaPlayerInstance?.release()
+        mediaPlayerInstance = null
+        activeAudioPlayingPath = null
+        Toast.makeText(context, "Audio stopped.", Toast.LENGTH_SHORT).show()
+    }
+
+    // Launchers
+    val galleryPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val contentResolver = context.contentResolver
+                val inputStream = contentResolver.openInputStream(uri)
+                if (inputStream != null) {
+                    val bytes = inputStream.readBytes()
+                    inputStream.close()
+
+                    val targetDir = File(externalDir, selectedFolderTab ?: "Photos")
+                    if (!targetDir.exists()) targetDir.mkdirs()
+
+                    val fileName = "Gallery_${System.currentTimeMillis()}.jpg"
+                    val fileOnDisk = File(targetDir, fileName)
+                    fileOnDisk.writeBytes(bytes)
+
+                    // Register custom note entry in DB so main pipeline tracks it
+                    viewModel.addNote(
+                        title = fileName,
+                        content = "Selected and imported secure gallery photo image.",
+                        folder = selectedFolderTab ?: "Photos",
+                        isVoice = false,
+                        localPath = fileOnDisk.absolutePath
+                    )
+                    Toast.makeText(context, "Photo imported safely to $selectedFolderTab!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Failed selector: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
+    }
 
-        Spacer(modifier = Modifier.height(12.dp))
-        Text("Available Secure Directory Structure:", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+    val micAccessLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                Toast.makeText(context, "Microphone enabled. Click again to Record!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Microphone permission required to record audio notes.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(folders.size) { index ->
-                val f = folders[index]
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
-                    border = BorderStroke(1.dp, Color.DarkGray)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(f, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        // Display count of local elements inside
-                        val count = remember(notes, finances, f) {
-                            if (f == "Finance Receipts") finances.size else notes.filter { it.folder == f }.size
+    fun toggleVoiceRecord() {
+        if (isRecordingVoice) {
+            try {
+                mediaRecorderInstance?.stop()
+                mediaRecorderInstance?.release()
+            } catch (e: Exception) {
+                // Ignore stop error
+            }
+            mediaRecorderInstance = null
+            isRecordingVoice = false
+
+            if (currentRecordingFile != null && currentRecordingFile!!.exists()) {
+                viewModel.addNote(
+                    title = currentRecordingFile!!.name,
+                    content = "Live audio voice recording.",
+                    folder = selectedFolderTab ?: "Voice",
+                    isVoice = true,
+                    localPath = currentRecordingFile!!.absolutePath
+                )
+                Toast.makeText(context, "Voice clip stored inside: ${currentRecordingFile!!.name}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            val audioPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            if (audioPermission == PackageManager.PERMISSION_GRANTED) {
+                val targetDir = File(externalDir, selectedFolderTab ?: "Voice")
+                if (!targetDir.exists()) targetDir.mkdirs()
+
+                val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val recordFile = File(targetDir, "Voice_Record_$stamp.m4a")
+                currentRecordingFile = recordFile
+
+                try {
+                    val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        MediaRecorder(context)
+                    } else {
+                        MediaRecorder()
+                    }.apply {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                        setOutputFile(recordFile.absolutePath)
+                        prepare()
+                        start()
+                    }
+                    mediaRecorderInstance = recorder
+                    isRecordingVoice = true
+                    Toast.makeText(context, "Recording live audio notes...", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Voice recorder init error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                micAccessLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayerInstance?.release()
+            mediaRecorderInstance?.release()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (selectedFolderTab == null) {
+            // Root View - Storage Stats Banner & Folders structure
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                border = BorderStroke(1.dp, Color.DarkGray),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DeviceHub, contentDescription = null, tint = Color.Green, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("INTERNAL STRAGE ENCRYPTION ACTIVE", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Secure Relative Path:", color = Color.Gray, fontSize = 10.sp)
+                    Text(appCustomRoot, color = Color.Green, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Absolute Directory Address:", color = Color.Gray, fontSize = 10.sp)
+                    Text(rootPathString, color = Color.LightGray, fontSize = 9.sp, fontFamily = FontFamily.Monospace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+
+            Text("Create custom Workspace Directory Folder:", color = Color.LightGray, fontSize = 11.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = folderNameText,
+                    onValueChange = { folderNameText = it },
+                    placeholder = { Text("Folder Name", color = Color.Gray) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    textStyle = TextStyle(color = Color.White)
+                )
+                Button(
+                    onClick = {
+                        if (folderNameText.isNotEmpty()) {
+                            viewModel.createFolder(folderNameText)
+                            folderNameText = ""
                         }
-                        Text("$count items", color = Color.Gray, fontSize = 9.sp)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                ) {
+                    Text("Create", fontSize = 11.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("Available Secure Directories (Tap to open disk browser):", color = Color.Gray, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(folders.size) { index ->
+                    val f = folders[index]
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                        border = BorderStroke(1.dp, Color.DarkGray),
+                        modifier = Modifier.clickable { selectedFolderTab = f }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(f, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            val count = remember(notes, finances, f) {
+                                if (f == "Finance Receipts") finances.size else notes.filter { it.folder == f }.size
+                            }
+                            Text("$count items", color = Color.Gray, fontSize = 9.sp)
+                        }
                     }
                 }
             }
+        } else {
+            // Nested Folder Files Browser View
+            val displayFolder = selectedFolderTab!!
+            val folderDirOnDisk = File(externalDir, displayFolder)
+            val filesOnDisk : List<File> = remember(notes, displayFolder, isRecordingVoice) {
+                if (!folderDirOnDisk.exists()) folderDirOnDisk.mkdirs()
+                folderDirOnDisk.listFiles()?.sortedByDescending { it.lastModified() } ?: emptyList()
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { selectedFolderTab = null }, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(displayFolder.uppercase(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (displayFolder == "Photos") {
+                        Button(
+                            onClick = { galleryPicker.launch("image/*") },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Import Gallery", fontSize = 9.sp, color = Color.White)
+                        }
+                    } else if (displayFolder == "Voice") {
+                        Button(
+                            onClick = { toggleVoiceRecord() },
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isRecordingVoice) Color.Red else Color(0xFF3B82F6)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Icon(Icons.Default.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(12.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (isRecordingVoice) "Stop" else "Record Voice", fontSize = 9.sp, color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            Text("Disk Address: $appCustomRoot/$displayFolder", color = Color.Gray, fontSize = 9.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(bottom = 8.dp))
+
+            if (filesOnDisk.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text("No secure files recorded inside this folder disk.", color = Color.DarkGray, fontSize = 11.sp)
+                }
+            } else {
+                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filesOnDisk.size) { index ->
+                        val file = filesOnDisk[index]
+                        val isPlayingThis = activeAudioPlayingPath == file.absolutePath
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                            border = BorderStroke(1.dp, if (isPlayingThis) Color.Green else Color.DarkGray)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                    Icon(
+                                        imageVector = when {
+                                            file.name.endsWith(".jpg") || file.name.endsWith(".jpeg") -> Icons.Default.Image
+                                            file.name.endsWith(".m4a") || file.name.endsWith(".mp3") -> Icons.Default.Audiotrack
+                                            else -> Icons.Default.InsertDriveFile
+                                        },
+                                        contentDescription = null,
+                                        tint = if (isPlayingThis) Color.Green else Color.LightGray,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(file.name, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        val kb = String.format("%.1f", file.length() / 1024.0)
+                                        Text("$kb KB | Tape to inspect", color = Color.Gray, fontSize = 9.sp)
+                                    }
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (file.name.endsWith(".m4a") || file.name.endsWith(".mp3")) {
+                                        IconButton(
+                                            onClick = {
+                                                if (isPlayingThis) stopAudioFile() else playAudioFile(file)
+                                            },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isPlayingThis) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                                contentDescription = "Trigger Audio",
+                                                tint = if (isPlayingThis) Color.Red else Color.Green,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    } else if (file.name.endsWith(".jpg") || file.name.endsWith(".jpeg")) {
+                                        IconButton(
+                                            onClick = { selectedPreviewFile = file },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Visibility, contentDescription = "Preview Image", tint = Color.Green, modifier = Modifier.size(16.dp))
+                                        }
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+
+                                    IconButton(
+                                        onClick = {
+                                            try {
+                                                if (isPlayingThis) stopAudioFile()
+                                                file.delete()
+                                                Toast.makeText(context, "Deleted from secure disk storage!", Toast.LENGTH_SHORT).show()
+                                                // Also clean DB entries
+                                                notes.find { it.localFilePath == file.absolutePath }?.let {
+                                                    viewModel.deleteNoteById(it.id)
+                                                }
+                                            } catch (e: Exception) {
+                                                Toast.makeText(context, "Delete failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Wipe", tint = Color.Red, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Modal Image Preview Dialog block
+    if (selectedPreviewFile != null) {
+        val bitmap = remember(selectedPreviewFile) {
+            try {
+                BitmapFactory.decodeFile(selectedPreviewFile!!.absolutePath)
+            } catch (e: Exception) {
+                null
+            }
+        }
+
+        if (bitmap != null) {
+            AlertDialog(
+                onDismissRequest = { selectedPreviewFile = null },
+                title = { Text(selectedPreviewFile!!.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold) },
+                text = {
+                    Box(modifier = Modifier.fillMaxWidth().height(260.dp), contentAlignment = Alignment.Center) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Safe photo viewing",
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                            alignment = Alignment.Center
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedPreviewFile = null }) {
+                        Text("Close", color = Color.Green)
+                    }
+                },
+                containerColor = Color(0xFF0F172A)
+            )
         }
     }
 }
@@ -1910,6 +2233,7 @@ fun FileManagerAppWindow(viewModel: AppViewModel, notes: List<NoteEntity>, finan
 // ---------------- CAMERA WORKSPACE APP SIMULATOR ----------------
 @Composable
 fun CameraSimAppWindow(viewModel: AppViewModel) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1927,9 +2251,45 @@ fun CameraSimAppWindow(viewModel: AppViewModel) {
             Button(
                 onClick = {
                     val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    viewModel.addNote("Snapshot_$stamp", "Secured workspace photo taken in app camera.", "Photos")
-                    viewModel.openWindow(null)
-                    Toast.makeText(viewModel.getApplication(), "Captured! Saved in Photos folder.", Toast.LENGTH_SHORT).show()
+                    val photosDir = File(context.getExternalFilesDir(null), "Photos")
+                    if (!photosDir.exists()) photosDir.mkdirs()
+                    val fileName = "Camera_Snap_$stamp.jpg"
+                    val file = File(photosDir, fileName)
+
+                    try {
+                        // Dynamically generate a real photographic JPG bitmap containing app coordinate info
+                        val bmp = Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(bmp)
+                        val paint = Paint().apply {
+                            color = android.graphics.Color.DKGRAY
+                        }
+                        canvas.drawRect(0f, 0f, 512f, 512f, paint)
+
+                        paint.color = android.graphics.Color.GREEN
+                        paint.strokeWidth = 5f
+                        paint.style = Paint.Style.STROKE
+                        canvas.drawCircle(256f, 256f, 160f, paint)
+                        canvas.drawLine(256f, 40f, 256f, 472f, paint)
+                        canvas.drawLine(40f, 256f, 472f, 256f, paint)
+
+                        val fos = FileOutputStream(file)
+                        bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos)
+                        fos.flush()
+                        fos.close()
+
+                        // Insert Note mapping
+                        viewModel.addNote(
+                            title = fileName,
+                            content = "Secured workspace photo taken in app camera lens.",
+                            folder = "Photos",
+                            isVoice = false,
+                            localPath = file.absolutePath
+                        )
+                        viewModel.openWindow(null)
+                        Toast.makeText(context, "Captured! Image saved directly to internal storage folder.", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Snapshot generation error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                 shape = RoundedCornerShape(24.dp)

@@ -88,6 +88,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
 
+    private val _isManualTypingEnabled = MutableStateFlow(false)
+    val isManualTypingEnabled: StateFlow<Boolean> = _isManualTypingEnabled.asStateFlow()
+
     fun setIsListening(listening: Boolean) {
         _isListening.value = listening
     }
@@ -111,11 +114,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             repo.seedDefaults()
+            // Force-enable widgets so they appear automatically on home screen
+            repo.updateWidgetLayout("voice_recorder", 40f, 350f, "medium", "#1E1E1E", 0.9f, true)
+            repo.updateWidgetLayout("photo_gallery", 40f, 500f, "medium", "#1E1E1E", 0.9f, true)
             // Load settings
             val themeSettVal = repo.getSetting("theme_dark") ?: "true"
             _isDarkMode.value = themeSettVal == "true"
             val wallpaperVal = repo.getSetting("wallpaper_style") ?: "0"
             _wallpaperStyle.value = wallpaperVal.toIntOrNull() ?: 0
+            val manualTypingVal = repo.getSetting("manual_typing_enabled") ?: "false"
+            _isManualTypingEnabled.value = manualTypingVal == "true"
         }
 
         // Start pomodoro ticker loop
@@ -166,6 +174,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _isDarkMode.value = !_isDarkMode.value
         viewModelScope.launch {
             repo.saveSetting("theme_dark", _isDarkMode.value.toString())
+        }
+    }
+
+    fun toggleManualTyping(enabled: Boolean) {
+        _isManualTypingEnabled.value = enabled
+        viewModelScope.launch {
+            repo.saveSetting("manual_typing_enabled", enabled.toString())
         }
     }
 
