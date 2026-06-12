@@ -5,21 +5,13 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
 import com.example.BuildConfig
-
-
-
 import android.app.Application
-
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
-
-import com.example.BuildConfig
 import com.example.data.*
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
+
 import kotlinx.coroutines.withContext
 
 import okhttp3.OkHttpClient
