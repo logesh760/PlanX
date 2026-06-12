@@ -1,29 +1,22 @@
 package com.example.viewmodel
 
+import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
-
 import com.example.BuildConfig
-import android.app.Application
 import com.example.data.*
-
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
-
-
 import org.json.JSONObject
-
 import java.text.SimpleDateFormat
 import java.util.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 sealed class CommandActionResult {
     data class OpenWindow(val windowId: String) : CommandActionResult()
@@ -94,6 +87,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Speech-To-Text simulation trigger (useful in streaming emulator)
     private val _isListening = MutableStateFlow(false)
     val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
+
+    fun setIsListening(listening: Boolean) {
+        _isListening.value = listening
+    }
 
     // Cloud Optional Gemini Chat State
     private val _geminiChatResponse = MutableStateFlow("")

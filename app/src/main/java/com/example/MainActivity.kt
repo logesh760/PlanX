@@ -4,16 +4,23 @@ import android.content.Context
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.widget.Toast
-
+import android.content.Intent
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.RecognitionListener
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -21,15 +28,12 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-
-
-
-
-
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-
 import androidx.compose.runtime.*
-
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,23 +54,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-
 import com.example.data.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.viewmodel.AppViewModel
-
-import kotlinx.coroutines.delay
-
 import java.text.SimpleDateFormat
 import java.util.*
-
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -823,6 +817,106 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
     var manualInputText by remember { mutableStateOf("") }
     val isKeyboardVisible = remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val speechRecognizer = remember {
+        try {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    val recognitionListener = remember {
+        object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                viewModel.setIsListening(true)
+            }
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                viewModel.setIsListening(false)
+            }
+            override fun onError(error: Int) {
+                viewModel.setIsListening(false)
+                val errMsg = when (error) {
+                    SpeechRecognizer.ERROR_AUDIO -> "Audio record error"
+                    SpeechRecognizer.ERROR_CLIENT -> "Client feedback error"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permission denied"
+                    SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "No command heard"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "System busy"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Listening timeout"
+                    else -> "Voice system busy"
+                }
+                Toast.makeText(context, errMsg, Toast.LENGTH_SHORT).show()
+            }
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val spokenText = matches[0]
+                    viewModel.processVoiceCommandText(spokenText)
+                }
+                viewModel.setIsListening(false)
+            }
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        }
+    }
+
+    DisposableEffect(speechRecognizer) {
+        speechRecognizer?.setRecognitionListener(recognitionListener)
+        onDispose {
+            speechRecognizer?.destroy()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                try {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toString())
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
+                    }
+                    speechRecognizer?.startListening(intent)
+                    viewModel.setIsListening(true)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Failed starting voice input: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "Microphone access is required for live voice control.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    fun toggleLiveVoice() {
+        if (isPulseListening) {
+            speechRecognizer?.stopListening()
+            viewModel.setIsListening(false)
+        } else {
+            val audioPermissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+            if (audioPermissionCheck == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault().toString())
+                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, "en-US")
+                    }
+                    speechRecognizer?.startListening(intent)
+                    viewModel.setIsListening(true)
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Voice recognizer error: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -839,41 +933,86 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Audio Pulsing Status Indicator
+                    // Audio Pulsing Status Indicator with breathing ripple
+                    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 0.8f,
+                        targetValue = if (isPulseListening) 0.1f else 0.8f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(if (isPulseListening) Color.Red else Color(0xFF10B981))
-                    )
+                            .size(24.dp)
+                            .clickable { toggleLiveVoice() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isPulseListening) {
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Red.copy(alpha = pulseAlpha))
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(10.dp)
+                                .clip(CircleShape)
+                                .background(if (isPulseListening) Color.Red else Color(0xFF10B981))
+                        )
+                    }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Hermes Voice OS (Offline-First)",
-                        color = com.example.ui.theme.ImmersiveTextPrimary,
+                        text = if (isPulseListening) "Listening to Voice..." else "Hermes Voice OS (Offline-First)",
+                        color = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersiveTextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Offline local semantic engine actively waiting for commands.",
+                    text = if (isPulseListening) "Speak your action clearly now." else "Offline local semantic engine actively waiting for commands.",
                     color = com.example.ui.theme.ImmersiveTextSecondary,
                     fontSize = 11.sp
                 )
             }
 
-            // Keyboard/Dictation toggle
-            IconButton(
-                onClick = { isKeyboardVisible.value = !isKeyboardVisible.value },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(com.example.ui.theme.ImmersiveSurface)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(
-                    imageVector = if (isKeyboardVisible.value) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
-                    contentDescription = "Manual Console Mode",
-                    tint = com.example.ui.theme.ImmersivePrimary
-                )
+                // Live voice trigger mic button
+                IconButton(
+                    onClick = { toggleLiveVoice() },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (isPulseListening) Color.Red.copy(alpha = 0.2f) else com.example.ui.theme.ImmersiveSurface)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Live Voice Mic Toggle",
+                        tint = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary
+                    )
+                }
+
+                // Keyboard/Dictation toggle
+                IconButton(
+                    onClick = { isKeyboardVisible.value = !isKeyboardVisible.value },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(com.example.ui.theme.ImmersiveSurface)
+                ) {
+                    Icon(
+                        imageVector = if (isKeyboardVisible.value) Icons.Default.KeyboardHide else Icons.Default.Keyboard,
+                        contentDescription = "Manual Console Mode",
+                        tint = com.example.ui.theme.ImmersivePrimary
+                    )
+                }
             }
         }
 
@@ -959,6 +1098,46 @@ fun VoiceOSConsolePanel(viewModel: AppViewModel) {
                 }
             }
         } else {
+            // Live Speak Button banner
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { toggleLiveVoice() }
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isPulseListening) Color.Red.copy(alpha = 0.15f) else com.example.ui.theme.ImmersiveSurface)
+                    .border(
+                        BorderStroke(1.dp, if (isPulseListening) Color.Red else com.example.ui.theme.ImmersiveOutline),
+                        RoundedCornerShape(16.dp)
+                    )
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Live Voice Mic",
+                    tint = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = if (isPulseListening) "LISTENING... SAY COMMAND" else "TAP TO SPEAK COMMAND LIVE",
+                        color = if (isPulseListening) Color.Red else com.example.ui.theme.ImmersivePrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = if (isPulseListening) "Speak command in English or Tamil now" else "Tap and speak. Uses on-device speech recognizer.",
+                        color = com.example.ui.theme.ImmersiveTextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Simulated Voice input presets so emulator user can experience Tamil & English voice parsing effortlessly
             Text("Try simulated spoken commands (Tap to trigger):", color = com.example.ui.theme.ImmersiveTextSecondary, fontSize = 11.sp)
             Spacer(modifier = Modifier.height(6.dp))
